@@ -16,6 +16,180 @@ from chatbot import AIChatBot, build_chatbot_from_env
 
 STATIC_DIR = Path(__file__).with_name("static")
 SESSION_COOKIE_NAME = "chatbot_session"
+FALLBACK_INDEX_HTML = """<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Laser ai</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #050816;
+      --panel: rgba(9, 14, 34, 0.92);
+      --line: rgba(123, 151, 255, 0.18);
+      --ink: #eff3ff;
+      --muted: #a4b0d6;
+      --user: linear-gradient(135deg, #7b4dff, #2ec5ff);
+      --assistant: rgba(12, 20, 46, 0.92);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 20% 20%, rgba(84, 132, 255, 0.2), transparent 18%),
+        radial-gradient(circle at 80% 10%, rgba(151, 71, 255, 0.22), transparent 20%),
+        linear-gradient(160deg, #04070f 0%, var(--bg) 40%, #120f2f 100%);
+    }
+    .shell {
+      width: min(960px, calc(100% - 32px));
+      margin: 24px auto;
+      background: var(--panel);
+      border: 1px solid rgba(140, 164, 255, 0.18);
+      border-radius: 28px;
+      overflow: hidden;
+      box-shadow: 0 28px 70px rgba(0, 0, 0, 0.42);
+    }
+    .header {
+      padding: 24px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .eyebrow {
+      margin: 0;
+      color: #93a8ff;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      font-size: 0.74rem;
+      font-weight: 700;
+    }
+    .title {
+      margin: 8px 0 0;
+      font-size: clamp(2rem, 4vw, 3.25rem);
+      line-height: 0.96;
+      letter-spacing: -0.05em;
+      font-family: "Segoe Script", "Palatino Linotype", "Book Antiqua", serif;
+    }
+    .hint {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+    .messages {
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-height: 52vh;
+    }
+    .message {
+      max-width: min(78%, 680px);
+      padding: 16px 18px;
+      border-radius: 22px;
+      line-height: 1.6;
+      box-shadow: 0 16px 34px rgba(0, 0, 0, 0.24);
+      border: 1px solid rgba(123, 151, 255, 0.16);
+      white-space: pre-wrap;
+    }
+    .assistant {
+      background: var(--assistant);
+      border-top-left-radius: 8px;
+    }
+    .user {
+      margin-left: auto;
+      color: white;
+      background: var(--user);
+      border-top-right-radius: 8px;
+      border: 0;
+    }
+    .composer {
+      padding: 20px 24px 24px;
+      border-top: 1px solid var(--line);
+      display: grid;
+      gap: 12px;
+    }
+    textarea {
+      width: 100%;
+      min-height: 66px;
+      resize: vertical;
+      padding: 16px 18px;
+      border-radius: 22px;
+      border: 1px solid rgba(123, 151, 255, 0.18);
+      background: rgba(8, 14, 34, 0.92);
+      color: var(--ink);
+      font: inherit;
+    }
+    button {
+      justify-self: end;
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 18px;
+      min-width: 92px;
+      color: white;
+      cursor: pointer;
+      background: var(--user);
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="header">
+      <div>
+        <p class="eyebrow">AI assistant</p>
+        <h1 class="title">Laser ai</h1>
+      </div>
+      <p class="hint">Fallback UI loaded because static files were not found in deployment.</p>
+    </header>
+    <section id="messages" class="messages">
+      <div class="message assistant">Welcome. Your deployment is running, and this fallback page is active while the static frontend files are unavailable.</div>
+    </section>
+    <form id="chatForm" class="composer">
+      <textarea id="messageInput" placeholder="Send a message..."></textarea>
+      <button type="submit">Send</button>
+    </form>
+  </div>
+  <script>
+    const form = document.getElementById("chatForm");
+    const input = document.getElementById("messageInput");
+    const messages = document.getElementById("messages");
+
+    function appendMessage(role, text) {
+      const node = document.createElement("div");
+      node.className = `message ${role}`;
+      node.textContent = text;
+      messages.appendChild(node);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const message = input.value.trim();
+      if (!message) return;
+      appendMessage("user", message);
+      input.value = "";
+
+      try {
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message })
+        });
+        const data = await response.json();
+        appendMessage("assistant", data.reply || data.error || "Something went wrong.");
+      } catch (error) {
+        appendMessage("assistant", "The server could not process the request.");
+      }
+    });
+  </script>
+</body>
+</html>
+"""
 
 
 class BotStore:
@@ -124,6 +298,14 @@ def create_handler(
                 return
 
             if not target.exists() or not target.is_file():
+                if relative_path == "index.html":
+                    self._send_bytes(
+                        FALLBACK_INDEX_HTML.encode("utf-8"),
+                        content_type="text/html; charset=utf-8",
+                        session_id=session_id,
+                        set_cookie=set_cookie,
+                    )
+                    return
                 self._send_json({"error": "File not found."}, status=HTTPStatus.NOT_FOUND)
                 return
 
@@ -250,8 +432,6 @@ def create_handler(
 def run_server(host: str = "127.0.0.1", port: int = 8000) -> None:
     handler = create_handler(BotStore(_default_bot_factory))
     with ThreadingHTTPServer((host, port), handler) as server:
-        print(f"Laser ai is running at http://{host}:{port}")
-        print("Press Ctrl+C to stop the server.")
         try:
             server.serve_forever()
         except KeyboardInterrupt:
