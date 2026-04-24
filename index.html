@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Laser ai</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <div class="page-shell">
+    <main class="chat-panel">
+      <header class="chat-header">
+        <div>
+          <p class="eyebrow">AI assistant</p>
+          <h1 class="chat-title">Laser ai</h1>
+        </div>
+        <button id="resetButton" class="ghost-button" type="button">Reset</button>
+      </header>
+
+      <section id="messages" class="messages" aria-live="polite">
+        <article class="message assistant intro-message">
+          <div class="bubble intro-bubble">
+            Welcome. Ask me for code, writing help, explanations, or anything your chatbot is set up to handle.
+          </div>
+        </article>
+      </section>
+
+      <form id="chatForm" class="composer">
+        <label class="sr-only" for="messageInput">Message</label>
+        <textarea
+          id="messageInput"
+          name="message"
+          rows="1"
+          placeholder="Send a message..."
+          autocomplete="off"
+        ></textarea>
+        <div class="composer-actions">
+          <p class="hint">Shift+Enter for a new line</p>
+          <button id="sendButton" class="send-button" type="submit">Send</button>
+        </div>
+      </form>
+    </main>
+  </div>
+
+  <template id="messageTemplate">
+    <article class="message">
+      <div class="bubble"></div>
+    </article>
+  </template>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
